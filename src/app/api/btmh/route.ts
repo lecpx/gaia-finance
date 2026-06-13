@@ -24,13 +24,12 @@ export async function GET() {
 
     if (!kgb) throw new Error('KGB not found')
 
-    // BTMH API returns prices for 10 chi, divide by 10 for per chi
     await supabase.from('gold_rates').upsert({
       code: 'KGB',
       name: kgb.name || 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K',
       vendor_name: kgb.vendor_name || 'Kim Gia Bảo',
-      buy_price: kgb.buy_price / 10,
-      sell_price: kgb.sell_price / 10,
+      buy_price: kgb.buy_price,
+      sell_price: kgb.sell_price,
       unit: 'chỉ',
       fetched_at: new Date().toISOString()
     })
