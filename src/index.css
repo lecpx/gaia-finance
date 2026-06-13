@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #2563eb;
+  --color-brand-dark: #1d4ed8;
+  --color-ink: #0f172a;
+  --color-line: #e2e8f0;
+}
+
+@layer base {
+  * {
+    @apply border-slate-200;
+  }
+
+  html {
+    @apply bg-[#f6f8fb];
+  }
+
+  body {
+    @apply bg-[#f6f8fb] text-slate-950 antialiased;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)];
+  }
+
+  .panel-header {
+    @apply flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4;
+  }
+
+  .field-label {
+    @apply text-xs font-semibold uppercase text-slate-500;
+    letter-spacing: .04em;
+  }
+
+  .field-input {
+    @apply h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100;
+  }
+
+  .table-input {
+    @apply h-9 w-full min-w-24 rounded-md border border-slate-300 bg-white px-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100;
+  }
+
+  .primary-button {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-700 px-4 text-sm font-semibold text-white shadow-sm shadow-blue-950/10 transition hover:bg-blue-800 active:translate-y-px;
+  }
+
+  .secondary-button {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-950/5 transition hover:bg-slate-50 active:translate-y-px;
+  }
+
+  .icon-button {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600;
+  }
+
+  .data-table {
+    @apply w-full min-w-[960px] border-collapse text-left;
+  }
+
+  .data-table thead {
+    @apply bg-slate-50 text-xs font-semibold uppercase text-slate-500;
+    letter-spacing: .04em;
+  }
+
+  .data-table th {
+    @apply whitespace-nowrap border-b border-slate-200 px-5 py-3;
+  }
+
+  .data-table td {
+    @apply whitespace-nowrap border-b border-slate-100 px-5 py-4 align-middle text-sm;
+  }
+
+  .data-table tbody tr {
+    @apply transition hover:bg-slate-50;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold;
+  }
+
+  .skeleton {
+    @apply animate-pulse rounded-md bg-slate-200;
+  }
+}

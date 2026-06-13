@@ -1,0 +1,231 @@
+import { supabase } from './supabaseClient'
+import type { SavingRecord, GoldRecord, GoalRecord, GoalProgress, TransactionRecord, MonthlyReport } from './client'
+
+export const supabaseApi = {
+  // === SAVINGS ===
+  getSavings: async (): Promise<SavingRecord[]> => {
+    const { data, error } = await supabase
+      .from('savings')
+      .select('*')
+      .order('created_at', { ascending: true })
+    
+    if (error) throw error
+    return data.map(d => ({
+      bank: d.bank,
+      amount: d.amount,
+      interest_rate: d.interest_rate,
+      term: d.term,
+      start_date: d.start_date
+    }))
+  },
+
+  addSaving: async (record: SavingRecord) => {
+    const { error } = await supabase
+      .from('savings')
+      .insert([record])
+    if (error) throw error
+    return { status: 'success' }
+  },
+
+  updateSavings: async (data: SavingRecord[]) => {
+    await supabase.from('savings').delete().neq('id', 0)
+    await supabase.from('savings').insert(data)
+    return { status: 'success' }
+  },
+
+  // === GOLD ===
+  getGold: async (): Promise<GoldRecord[]> => {
+    const { data, error } = await supabase
+      .from('gold')
+      .select('*')
+      .order('created_at', { ascending: true })
+    
+    if (error) throw error
+    return data.map(d => ({
+      gold_type: d.gold_type,
+      quantity: d.quantity,
+      buy_price: d.buy_price,
+      buy_date: d.buy_date,
+      note: d.note || ''
+    }))
+  },
+
+  addGold: async (record: GoldRecord) => {
+    const { error } = await supabase
+      .from('gold')
+      .insert([record])
+    if (error) throw error
+    return { status: 'success' }
+  },
+
+  updateGold: async (data: GoldRecord[]) => {
+    await supabase.from('gold').delete().neq('id', 0)
+    await supabase.from('gold').insert(data)
+    return { status: 'success' }
+  },
+
+  // === GOALS ===
+  getGoals: async (): Promise<GoalRecord[]> => {
+    const { data, error } = await supabase
+      .from('goals')
+      .select('*')
+      .order('priority', { ascending: true })
+    if (error) throw error
+    return data
+  },
+
+  addGoal: async (record: GoalRecord) => {
+    const { error } = await supabase
+      .from('goals')
+      .insert([record])
+    if (error) throw error
+    return { status: 'success' }
+  },
+
+  updateGoals: async (data: GoalRecord[]) => {
+    await supabase.from('goals').delete().neq('id', '')
+    await supabase.from('goals').insert(data)
+    return { status: 'success' }
+  },
+
+  deleteGoal: async (id: string) => {
+    const { error } = await supabase
+      .from('goals')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+    return { status: 'success' }
+  },
+
+  // === CASHFLOW ===
+  getTransactions: async (): Promise<TransactionRecord[]> => {
+    const { data, error } = await supabase
+      .from('cashflow')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return data
+  },
+
+  addTransaction: async (record: TransactionRecord) => {
+    const { error } = await supabase
+      .from('cashflow')
+      .insert([record])
+    if (error) throw error
+    return { status: 'success' }
+  },
+
+  updateTransactions: async (data: TransactionRecord[]) => {
+    await supabase.from('cashflow').delete().neq('id', '')
+    await supabase.from('cashflow').insert(data)
+    return { status: 'success' }
+  },
+
+  deleteTransaction: async (id: string) => {
+    const { error } = await supabase
+      .from('cashflow')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+    return { status: 'success' }
+  },
+
+  // === BTMH GOLD RATE (giữ nguyên cache mechanism) ===
+  getBtmhGoldRate: async () => {
+    const { fetchBtmhGoldRate } = await import('./db')
+    return fetchBtmhGoldRate()
+  },
+
+  getBtmhGoldChart: async (code = 'KGB', from_date?: string, to_date?: string, max_days = 365) => {
+    const { fetchBtmhGoldChart } = await import('./db')
+    return fetchBtmhGoldChart(code, from_date, to_date, max_days)
+  },
+
+  // === COMPUTED FUNCTIONS ===
+  getSummary: async () => {
+    const [savings, gold, transactions] = await Promise.all([
+      supabaseApi.getSavings(),
+      supabaseApi.getGold(),
+      supabaseApi.getTransactions()
+    ])
+
+    const cash = transactions.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0)
+    const total_saving = savings.reduce((s, r) => s + r.amount, 0)
+    const total_gold_investment = gold.reduce((s, r) => s + r.quantity * r.buy_price, 0)
+    const total_assets = total_saving + total_gold_investment + cash
+
+    return {
+      total_assets,
+      total_saving,
+      total_gold_investment,
+      cash_balance: cash,
+      saving_percentage: total_assets > 0 ? Math.round((total_saving / total_assets) * 1000) / 10 : 0,
+      gold_percentage: total_assets > 0 ? Math.round((total_gold_investment / total_assets) * 1000) / 10 : 0,
+    }
+  },
+
+  getMonthlyReport: async (month: number, year: number): Promise<MonthlyReport> => {
+    const transactions = await supabaseApi.getTransactions()
+    const filtered = transactions.filter(t => {
+      const parts = t.date.split('/')
+      return parts.length === 3 && parseInt(parts[1]) === month && parseInt(parts[2]) === year
+    })
+
+    const total_income = filtered.reduce((s, t) => t.type === 'income' ? s + t.amount : s, 0)
+    const total_expense = filtered.reduce((s, t) => t.type === 'expense' ? s + t.amount : s, 0)
+
+    const catMap = new Map<string, { category: string; type: string; amount: number; count: number }>()
+    for (const t of filtered) {
+      const key = t.category
+      const existing = catMap.get(key)
+      if (existing) {
+        existing.amount += t.amount
+        existing.count += 1
+      } else {
+        catMap.set(key, { category: key, type: t.type, amount: t.amount, count: 1 })
+      }
+    }
+
+    return {
+      month,
+      year,
+      total_income,
+      total_expense,
+      net: total_income - total_expense,
+      categories: Array.from(catMap.values()),
+    }
+  },
+
+  getGoalsWithProgress: async (): Promise<GoalProgress[]> => {
+    const [goals, savings, gold] = await Promise.all([
+      supabaseApi.getGoals(),
+      supabaseApi.getSavings(),
+      supabaseApi.getGold()
+    ])
+
+    try {
+      const rate = await supabaseApi.getBtmhGoldRate()
+      const buyPrice = rate?.buy_price ?? 0
+
+      return goals.map(g => {
+        let current = 0
+        for (const idx of g.saving_indices) {
+          if (idx >= 0 && idx < savings.length) current += savings[idx].amount
+        }
+        for (const idx of g.gold_indices) {
+          if (idx >= 0 && idx < gold.length) {
+            current += gold[idx].quantity * (buyPrice > 0 ? buyPrice : gold[idx].buy_price)
+          }
+        }
+        const pct = g.target_amount > 0 ? Math.min((current / g.target_amount) * 100, 100) : 0
+        return {
+          ...g,
+          current_amount: Math.round(current),
+          percentage: Math.round(pct * 10) / 10,
+        }
+      }).sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name))
+    } catch {
+      return goals.map(g => ({ ...g, current_amount: 0, percentage: 0 }))
+    }
+  }
+}
