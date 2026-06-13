@@ -99,8 +99,8 @@ export default async function handler(
           code: 'KGB',
           name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K',
           vendor_name: 'Kim Gia Bảo',
-          buy_price: 90000000,
-          sell_price: 90500000,
+          buy_price: 85000000,
+          sell_price: 85500000,
           unit: 'chỉ',
           weight: '1 chỉ',
           trend: 'stable',
@@ -148,6 +148,11 @@ export default async function handler(
       });
     }
 
+    // Fix price: BTMH API returns price in wrong unit (14400000 = 14.4M instead of 144M)
+    // Multiply by 10 to get correct price in VND
+    const fixedBuyPrice = (kgb.buy_price || 85000000) * 10
+    const fixedSellPrice = (kgb.sell_price || 85500000) * 10
+
     // Return the gold rate
     return res.status(200).json({
       success: true,
@@ -155,9 +160,9 @@ export default async function handler(
         code: kgb.code || 'KGB',
         name: kgb.name || 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K',
         vendor_name: kgb.vendor_name || 'Kim Gia Bảo',
-        buy_price: kgb.buy_price || 85000000,
-        sell_price: kgb.sell_price || 85500000,
-        unit: kgb.unit || 'chỉ',
+        buy_price: fixedBuyPrice,
+        sell_price: fixedSellPrice,
+        unit: 'chỉ',
         weight: kgb.weight || '1 chỉ',
         trend: kgb.trend || 'stable',
         trend_value: kgb.trend_value || '0',
