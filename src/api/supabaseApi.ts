@@ -1,14 +1,38 @@
 import { supabase } from './supabaseClient'
 import type { SavingRecord, GoldRecord, GoalRecord, GoalProgress, TransactionRecord, MonthlyReport, GoldRate, GoldChartResponse } from './client'
 
+// Fallback data
+const FALLBACK_GOLD_RATE: GoldRate = {
+  code: 'KGB',
+  name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K (999.9)',
+  vendor_name: 'Kim Gia Bảo',
+  buy_price: 85000000,
+  sell_price: 85500000,
+  unit: 'chỉ',
+  weight: '1 chỉ',
+  trend: 'stable',
+  trend_value: '0',
+  last_updated: new Date().toISOString(),
+  tracked_code: 'KGB',
+  tracked_name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K (999.9)',
+  fetched_at: new Date().toISOString(),
+  from_cache: false,
+}
+
+const FALLBACK_CHART: GoldChartResponse = {
+  data_points: [],
+  product_options: [{ value: 'KGB', label: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K (999.9)' }],
+  price_changes: [],
+  default_product: 'KGB',
+  from_cache: false,
+}
+
 export const supabaseApi = {
-  // === SAVINGS ===
   getSavings: async (): Promise<SavingRecord[]> => {
     const { data, error } = await supabase
       .from('savings')
       .select('*')
       .order('created_at', { ascending: true })
-    
     if (error) throw error
     return data.map(d => ({
       bank: d.bank,
@@ -20,9 +44,7 @@ export const supabaseApi = {
   },
 
   addSaving: async (record: SavingRecord) => {
-    const { error } = await supabase
-      .from('savings')
-      .insert([record])
+    const { error } = await supabase.from('savings').insert([record])
     if (error) throw error
     return { status: 'success' }
   },
@@ -33,13 +55,11 @@ export const supabaseApi = {
     return { status: 'success' }
   },
 
-  // === GOLD ===
   getGold: async (): Promise<GoldRecord[]> => {
     const { data, error } = await supabase
       .from('gold')
       .select('*')
       .order('created_at', { ascending: true })
-    
     if (error) throw error
     return data.map(d => ({
       gold_type: d.gold_type,
@@ -51,9 +71,7 @@ export const supabaseApi = {
   },
 
   addGold: async (record: GoldRecord) => {
-    const { error } = await supabase
-      .from('gold')
-      .insert([record])
+    const { error } = await supabase.from('gold').insert([record])
     if (error) throw error
     return { status: 'success' }
   },
@@ -64,7 +82,6 @@ export const supabaseApi = {
     return { status: 'success' }
   },
 
-  // === GOALS ===
   getGoals: async (): Promise<GoalRecord[]> => {
     const { data, error } = await supabase
       .from('goals')
@@ -75,9 +92,7 @@ export const supabaseApi = {
   },
 
   addGoal: async (record: GoalRecord) => {
-    const { error } = await supabase
-      .from('goals')
-      .insert([record])
+    const { error } = await supabase.from('goals').insert([record])
     if (error) throw error
     return { status: 'success' }
   },
@@ -89,15 +104,11 @@ export const supabaseApi = {
   },
 
   deleteGoal: async (id: string) => {
-    const { error } = await supabase
-      .from('goals')
-      .delete()
-      .eq('id', id)
+    const { error } = await supabase.from('goals').delete().eq('id', id)
     if (error) throw error
     return { status: 'success' }
   },
 
-  // === CASHFLOW ===
   getTransactions: async (): Promise<TransactionRecord[]> => {
     const { data, error } = await supabase
       .from('cashflow')
@@ -108,9 +119,7 @@ export const supabaseApi = {
   },
 
   addTransaction: async (record: TransactionRecord) => {
-    const { error } = await supabase
-      .from('cashflow')
-      .insert([record])
+    const { error } = await supabase.from('cashflow').insert([record])
     if (error) throw error
     return { status: 'success' }
   },
@@ -122,78 +131,55 @@ export const supabaseApi = {
   },
 
   deleteTransaction: async (id: string) => {
-    const { error } = await supabase
-      .from('cashflow')
-      .delete()
-      .eq('id', id)
+    const { error } = await supabase.from('cashflow').delete().eq('id', id)
     if (error) throw error
     return { status: 'success' }
   },
 
-  // === BTMH GOLD RATE (from Supabase gold_rates table) ===
   getBtmhGoldRate: async (): Promise<GoldRate> => {
-    const { data, error } = await supabase
-      .from('gold_rates')
-      .select('*')
-      .eq('code', 'KGB')
-      .order('fetched_at', { ascending: false })
-      .limit(1);
-
-    if (error) {
-      console.error('Error fetching gold rate:', error);
+    try {
+      const response = await fetch('/api/btmh')
+      if (!response.ok) throw new Error('API failed')
+      const data = await response.json()
+      if (data.success && data.goldRate) {
+        return {
+          ...data.goldRate,
+          from_cache: false,
+          tracked_code: 'KGB',
+          tracked_name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K (999.9)'
+        }
+      }
+    } catch (error) {
+      console.error('BTMH fetch failed:', error)
     }
-
-    if (!data || data.length === 0) {
-      // Fallback data if no data in table
-      return {
-        code: 'KGB',
-        name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)',
-        vendor_name: 'Kim Gia Bảo',
-        buy_price: 85000000,
-        sell_price: 85500000,
-        unit: 'chỉ',
-        weight: '1 chỉ',
-        trend: 'stable',
-        trend_value: '0',
-        last_updated: new Date().toISOString(),
-        tracked_code: 'KGB',
-        tracked_name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)',
-        fetched_at: new Date().toISOString(),
-        from_cache: false,
-      };
-    }
-
-    return {
-      ...data[0],
-      from_cache: false,
-    };
+    try {
+      const { data, error } = await supabase
+        .from('gold_rates')
+        .select('*')
+        .eq('code', 'KGB')
+        .order('fetched_at', { ascending: false })
+        .limit(1)
+      if (!error && data?.length) {
+        return { ...data[0], from_cache: false }
+      }
+    } catch {}
+    return FALLBACK_GOLD_RATE
   },
 
   getBtmhGoldChart: async (): Promise<GoldChartResponse> => {
-    // Return empty chart data for now
-    // Can be enhanced later to store chart data in Supabase
-    return {
-      data_points: [],
-      product_options: [{ value: 'KGB', label: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)' }],
-      price_changes: [],
-      default_product: 'KGB',
-      from_cache: false,
-    };
+    return FALLBACK_CHART
   },
 
-  // === COMPUTED FUNCTIONS ===
   getSummary: async () => {
     const [savings, gold, transactions] = await Promise.all([
       supabaseApi.getSavings(),
       supabaseApi.getGold(),
       supabaseApi.getTransactions()
     ])
-
     const cash = transactions.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0)
     const total_saving = savings.reduce((s, r) => s + r.amount, 0)
     const total_gold_investment = gold.reduce((s, r) => s + r.quantity * r.buy_price, 0)
     const total_assets = total_saving + total_gold_investment + cash
-
     return {
       total_assets,
       total_saving,
@@ -210,10 +196,8 @@ export const supabaseApi = {
       const parts = t.date.split('/')
       return parts.length === 3 && parseInt(parts[1]) === month && parseInt(parts[2]) === year
     })
-
     const total_income = filtered.reduce((s, t) => t.type === 'income' ? s + t.amount : s, 0)
     const total_expense = filtered.reduce((s, t) => t.type === 'expense' ? s + t.amount : s, 0)
-
     const catMap = new Map<string, { category: string; type: string; amount: number; count: number }>()
     for (const t of filtered) {
       const key = t.category
@@ -225,7 +209,6 @@ export const supabaseApi = {
         catMap.set(key, { category: key, type: t.type, amount: t.amount, count: 1 })
       }
     }
-
     return {
       month,
       year,
@@ -242,11 +225,9 @@ export const supabaseApi = {
       supabaseApi.getSavings(),
       supabaseApi.getGold()
     ])
-
     try {
       const rate = await supabaseApi.getBtmhGoldRate()
       const buyPrice = rate?.buy_price ?? 0
-
       return goals.map(g => {
         let current = 0
         for (const idx of g.saving_indices) {
