@@ -4,7 +4,7 @@ import { api } from '../api';
 import type { GoldRecord, SavingRecord, GoalProgress } from '../api/client';
 import MetricCard from '../components/MetricCard';
 import { useToast } from '../components/Toast';
-import { Banknote, Building2, CircleDollarSign, Coins, Gem, Landmark, Percent } from 'lucide-react';
+import { Banknote, Building2, CircleDollarSign, Coins, Gem, Landmark, Percent, TrendingUp } from 'lucide-react';
 import { formatVnd } from '../utils/format';
 
 interface Summary {
