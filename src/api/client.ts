@@ -1,4 +1,5 @@
-import { db, fetchBtmhGoldRate, fetchBtmhGoldChart } from './db';
+// Type definitions only - implementation is in supabaseApi.ts
+// This file keeps the type definitions for backwards compatibility
 
 export interface SavingRecord {
   id?: number | string;
@@ -82,76 +83,6 @@ export interface MonthlyReport {
   categories: Array<{ category: string; type: string; amount: number; count: number }>;
 }
 
-export const api = {
-  getSummary: () => Promise.resolve(db.getSummary()),
-
-  getSavings: () => Promise.resolve(db.getSavings()),
-  addSaving: (data: SavingRecord) => { db.addSaving(data); return Promise.resolve({ status: 'success' }); },
-  updateSavings: (data: SavingRecord[]) => { db.setSavings(data); return Promise.resolve({ status: 'success' }); },
-
-  getGold: () => Promise.resolve(db.getGold()),
-  addGold: (data: GoldRecord) => { db.addGold(data); return Promise.resolve({ status: 'success' }); },
-  updateGold: (data: GoldRecord[]) => { db.setGold(data); return Promise.resolve({ status: 'success' }); },
-  getBtmhGoldRate: () => fetchBtmhGoldRate(),
-  getBtmhGoldChart: (code = 'KGB', from_date?: string, to_date?: string, max_days = 365) =>
-    fetchBtmhGoldChart(code, from_date, to_date, max_days),
-
-  getGoals: async () => {
-    let buyPrice = 0;
-    try { const rate = await fetchBtmhGoldRate(); buyPrice = rate.buy_price; } catch { /* fallback to purchase price */ }
-    return db.getGoalProgress(buyPrice);
-  },
-  addGoal: (data: GoalRecord) => {
-    const goals = db.getGoals();
-    for (const g of goals) {
-      if (g.saving_indices.some(i => data.saving_indices.includes(i)))
-        return Promise.reject(new Error(`Sổ tiết kiệm đã được dùng cho mục tiêu '${g.name}'`));
-      if (g.gold_indices.some(i => data.gold_indices.includes(i)))
-        return Promise.reject(new Error(`Vàng đã được dùng cho mục tiêu '${g.name}'`));
-    }
-    goals.push(data);
-    db.setGoals(goals);
-    return Promise.resolve({ status: 'success' });
-  },
-  updateGoals: (data: GoalRecord[]) => {
-    const used = new Map<string, Set<number>>();
-    const usedGold = new Map<string, Set<number>>();
-    for (const g of data) {
-      for (const i of g.saving_indices) {
-        if (Array.from(used.values()).some(s => s.has(i)))
-          return Promise.reject(new Error('Sổ tiết kiệm đã được dùng cho mục tiêu khác.'));
-      }
-      for (const i of g.gold_indices) {
-        if (Array.from(usedGold.values()).some(s => s.has(i)))
-          return Promise.reject(new Error('Vàng đã được dùng cho mục tiêu khác.'));
-      }
-      used.set(g.id, new Set(g.saving_indices));
-      usedGold.set(g.id, new Set(g.gold_indices));
-    }
-    db.setGoals(data);
-    return Promise.resolve({ status: 'success' });
-  },
-  deleteGoal: (id: string) => {
-    const goals = db.getGoals().filter(g => g.id !== id);
-    db.setGoals(goals);
-    return Promise.resolve({ status: 'success' });
-  },
-
-  getTransactions: () => Promise.resolve(db.getTransactions()),
-  addTransaction: (data: TransactionRecord) => {
-    const txs = db.getTransactions();
-    txs.push(data);
-    db.setTransactions(txs);
-    return Promise.resolve({ status: 'success' });
-  },
-  updateTransactions: (data: TransactionRecord[]) => { db.setTransactions(data); return Promise.resolve({ status: 'success' }); },
-  deleteTransaction: (id: string) => {
-    const txs = db.getTransactions().filter(t => t.id !== id);
-    db.setTransactions(txs);
-    return Promise.resolve({ status: 'success' });
-  },
-  getMonthlyReport: (month?: number, year?: number) => {
-    const now = new Date();
-    return Promise.resolve(db.getMonthlyReport(month ?? now.getMonth() + 1, year ?? now.getFullYear()));
-  },
-};
+// Legacy exports for backwards compatibility
+// Note: For Supabase, use supabaseApi from supabaseApi.ts instead
+export { fetchBtmhGoldRate, fetchBtmhGoldChart } from './db';
