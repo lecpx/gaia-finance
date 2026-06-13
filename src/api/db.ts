@@ -5,12 +5,7 @@ const KEYS = {
   gold: 'gaia_gold',
   goals: 'gaia_goals',
   cashflow: 'gaia_cashflow',
-  goldRateCache: 'gaia_gold_rate_cache',
-  goldRateCacheTime: 'gaia_gold_rate_cache_time',
 };
-
-// Cache timeout: 1 hour (in milliseconds)
-const CACHE_TIMEOUT = 3600000;
 
 function load<T>(key: string): T[] {
   try {
@@ -21,29 +16,6 @@ function load<T>(key: string): T[] {
 
 function save<T>(key: string, data: T[]) {
   localStorage.setItem(key, JSON.stringify(data));
-}
-
-// Cache helpers
-function getCache<T>(key: string): T | null {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function setCache<T>(key: string, data: T) {
-  localStorage.setItem(key, JSON.stringify(data));
-}
-
-function isCacheValid(cacheTimeKey: string): boolean {
-  const cacheTime = localStorage.getItem(cacheTimeKey);
-  if (!cacheTime) return false;
-  
-  const cachedAt = parseInt(cacheTime);
-  const now = Date.now();
-  return now - cachedAt < CACHE_TIMEOUT;
 }
 
 export const db = {
@@ -160,38 +132,19 @@ export const db = {
 
 // ============================================================================
 // BTMH Gold Rate Functions
-// If BTMH API fails, throw error instead of using fallback data
+// BTMH API blocks CORS from browser, cannot fetch directly
+// Throw error instead of using fallback data
 // ============================================================================
 
-// Cache keys for gold rate
 export async function fetchBtmhGoldRate(): Promise<GoldRate> {
-  // Check cache first
-  const cachedRate = getCache<GoldRate>(KEYS.goldRateCache);
-  const cacheValid = isCacheValid(KEYS.goldRateCacheTime);
-  
-  if (cachedRate && cacheValid) {
-    return { ...cachedRate, from_cache: true };
-  }
-
-  // BTMH API blocks CORS from browser, cannot fetch directly
   throw new Error('Không thể lấy giá BTMH: API bị chặn bởi CORS');
 }
 
-// Cache keys for chart
 export async function fetchBtmhGoldChart(
   _code?: string,
   _from_date?: string,
   _to_date?: string,
   _max_days?: number,
 ): Promise<GoldChartResponse> {
-  // Check cache first
-  const cachedChart = getCache<GoldChartResponse>('gaia_gold_chart_cache');
-  const cacheValid = isCacheValid('gaia_gold_chart_cache_time');
-  
-  if (cachedChart && cacheValid) {
-    return { ...cachedChart, from_cache: true };
-  }
-
-  // BTMH chart API also blocked by CORS
   throw new Error('Không thể lấy biểu đồ giá BTMH: API bị chặn bởi CORS');
 }
