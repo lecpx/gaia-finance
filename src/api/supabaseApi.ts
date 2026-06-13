@@ -53,7 +53,7 @@ export const supabaseApi = {
   getBtmhGoldRate: async (): Promise<GoldRate> => {
     const CACHE_KEY = 'btmh_gold_rate_cache'
     const CACHE_TIME_KEY = 'btmh_gold_rate_cache_time'
-    const CACHE_TIMEOUT = 3600000
+    const CACHE_TIMEOUT = 300000
 
     const getCache = (): GoldRate | null => {
       try {
@@ -69,8 +69,8 @@ export const supabaseApi = {
     if (cached) return { ...cached, from_cache: true }
 
     try {
-      // Call Vercel Serverless Function to fetch BTMH gold rate
-      const response = await fetch('/api/btmh', {
+      const cacheBuster = Date.now()
+      const response = await fetch(`/api/btmh?_=${cacheBuster}`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       })
