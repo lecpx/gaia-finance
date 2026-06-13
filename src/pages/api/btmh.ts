@@ -1,10 +1,12 @@
-import { supabase } from '../../../api/supabaseClient'
-import { NextResponse } from 'next/server'
+import { supabase } from '../../api/supabaseClient'
+import type { NextApiRequest, NextApiResponse } from 'next'
 
-// Bypass SSL certificate
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
-export async function GET() {
+export default async function handler(
+  _req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
     const btmhResponse = await fetch('https://baotinmanhhai.vn/api/graphql', {
       method: 'POST',
@@ -41,7 +43,6 @@ export async function GET() {
 
     if (!kgb) throw new Error('KGB not found')
 
-    // Save to Supabase
     const { error } = await supabase
       .from('gold_rates')
       .upsert({
@@ -62,7 +63,7 @@ export async function GET() {
 
     if (error) throw new Error(error.message)
 
-    return NextResponse.json({
+    res.status(200).json({
       success: true,
       goldRate: {
         ...kgb,
@@ -71,12 +72,11 @@ export async function GET() {
         tracked_name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K'
       }
     })
-
   } catch (error) {
     console.error('BTMH error:', error)
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
   }
 }
