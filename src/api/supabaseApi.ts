@@ -51,23 +51,6 @@ export const supabaseApi = {
   deleteTransaction: async (id: string) => { const { error } = await supabase.from('cashflow').delete().eq('id', id); if (error) throw error; return { status: 'success' } },
 
   getBtmhGoldRate: async (): Promise<GoldRate> => {
-    const CACHE_KEY = 'btmh_gold_rate_cache'
-    const CACHE_TIME_KEY = 'btmh_gold_rate_cache_time'
-    const CACHE_TIMEOUT = 300000
-
-    const getCache = (): GoldRate | null => {
-      try {
-        const raw = localStorage.getItem(CACHE_KEY)
-        const time = localStorage.getItem(CACHE_TIME_KEY)
-        if (!raw || !time) return null
-        if (Date.now() - parseInt(time) > CACHE_TIMEOUT) return null
-        return JSON.parse(raw)
-      } catch { return null }
-    }
-
-    const cached = getCache()
-    if (cached) return { ...cached, from_cache: true }
-
     try {
       const cacheBuster = Date.now()
       const response = await fetch(`/api/btmh?_=${cacheBuster}`, {
@@ -77,8 +60,6 @@ export const supabaseApi = {
       const result = await response.json()
       
       if (result.success && result.goldRate) {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(result.goldRate))
-        localStorage.setItem(CACHE_TIME_KEY, Date.now().toString())
         return { ...result.goldRate, from_cache: false }
       }
     } catch (error) {
