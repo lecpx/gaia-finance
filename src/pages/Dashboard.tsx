@@ -77,9 +77,8 @@ const Dashboard: React.FC = () => {
   const termSavingInterest = useMemo(() => savings.reduce((sum, item) => sum + item.amount * item.interest_rate / 100 * item.term / 12, 0), [savings]);
   const totalGoldQuantity = useMemo(() => gold.reduce((sum, item) => sum + item.quantity, 0), [gold]);
   const goldCost = useMemo(() => gold.reduce((sum, item) => sum + item.quantity * item.buy_price, 0), [gold]);
-  // BTMH API returns prices for 10 chi, divide by 10 for per chi
-  const currentGoldBuyPrice = (goldRate?.buy_price ?? 0) / 10;
-  const currentGoldSellPrice = (goldRate?.sell_price ?? 0) / 10;
+  const currentGoldBuyPrice = goldRate?.buy_price ?? 0;
+  const currentGoldSellPrice = goldRate?.sell_price ?? 0;
   const spreadPerChi = useMemo(() => Math.max(currentGoldSellPrice - currentGoldBuyPrice, 0), [currentGoldSellPrice, currentGoldBuyPrice]);
   const goldMarketValue = useMemo(() => currentGoldBuyPrice > 0 ? totalGoldQuantity * currentGoldBuyPrice : goldCost, [currentGoldBuyPrice, totalGoldQuantity, goldCost]);
   const goldProfit = useMemo(() => goldMarketValue - goldCost, [goldMarketValue, goldCost]);
