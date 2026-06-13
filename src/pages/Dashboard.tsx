@@ -5,7 +5,7 @@ import type { GoldRecord, SavingRecord, GoalProgress } from '../api/client';
 import MetricCard from '../components/MetricCard';
 import { useToast } from '../components/Toast';
 import { Banknote, Building2, CircleDollarSign, Coins, Gem, Landmark, Percent } from 'lucide-react';
-import { formatPercent, formatVnd } from '../utils/format';
+import { formatVnd } from '../utils/format';
 
 interface Summary {
   total_assets: number;
