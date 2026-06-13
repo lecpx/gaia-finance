@@ -3,7 +3,8 @@
   "builds": [
     {
       "src": "api/**/*.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": { "zeroConfig": true }
     },
     {
       "src": "package.json",
@@ -14,7 +15,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "dest": "api/$1"
     },
     {
       "src": "/(.*)",
