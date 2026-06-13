@@ -1,31 +1,6 @@
 import { supabase } from './supabaseClient'
 import type { SavingRecord, GoldRecord, GoalRecord, GoalProgress, TransactionRecord, MonthlyReport, GoldRate, GoldChartResponse } from './client'
 
-const FALLBACK_GOLD_RATE: GoldRate = {
-  code: 'KGB',
-  name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K',
-  vendor_name: 'Kim Gia Bảo',
-  buy_price: 144000000,
-  sell_price: 147000000,
-  unit: 'chỉ',
-  weight: '1 chỉ',
-  trend: 'stable',
-  trend_value: '0',
-  last_updated: new Date().toISOString(),
-  tracked_code: 'KGB',
-  tracked_name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K',
-  fetched_at: new Date().toISOString(),
-  from_cache: false
-}
-
-const FALLBACK_CHART: GoldChartResponse = {
-  data_points: [],
-  product_options: [{ value: 'KGB', label: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K' }],
-  price_changes: [],
-  default_product: 'KGB',
-  from_cache: false
-}
-
 export const supabaseApi = {
   getSavings: async (): Promise<SavingRecord[]> => {
     const { data, error } = await supabase.from('savings').select('*').order('created_at', { ascending: true })
@@ -51,25 +26,23 @@ export const supabaseApi = {
   deleteTransaction: async (id: string) => { const { error } = await supabase.from('cashflow').delete().eq('id', id); if (error) throw error; return { status: 'success' } },
 
   getBtmhGoldRate: async (): Promise<GoldRate> => {
-    try {
-      const cacheBuster = Date.now()
-      const response = await fetch(`/api/btmh?_=${cacheBuster}`, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' }
-      })
-      const result = await response.json()
-      
-      if (result.success && result.goldRate) {
-        return { ...result.goldRate, from_cache: false }
-      }
-    } catch (error) {
-      console.error('Failed to fetch from /api/btmh:', error)
+    const cacheBuster = Date.now()
+    const response = await fetch(`/api/btmh?_=${cacheBuster}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    })
+    const result = await response.json()
+    
+    if (result.success && result.goldRate) {
+      return { ...result.goldRate, from_cache: false }
     }
-
-    return FALLBACK_GOLD_RATE
+    
+    throw new Error(result.error || 'Không thể lấy giá BTMH: API trả về lỗi');
   },
 
-  getBtmhGoldChart: async (): Promise<GoldChartResponse> => FALLBACK_CHART,
+  getBtmhGoldChart: async (): Promise<GoldChartResponse> => {
+    throw new Error('Không thể lấy biểu đồ giá BTMH: Chưa triển khai');
+  },
 
   getSummary: async () => {
     const [savings, gold, transactions] = await Promise.all([supabaseApi.getSavings(), supabaseApi.getGold(), supabaseApi.getTransactions()])

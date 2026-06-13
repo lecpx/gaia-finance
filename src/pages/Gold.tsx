@@ -42,7 +42,10 @@ const Gold: React.FC = () => {
     setChartLoading(true);
     api.getBtmhGoldChart()
       .then(setGoldChart)
-      .catch(() => { setGoldChart(null); toast('Không thể tải biểu đồ giá.', 'error'); })
+      .catch((err) => { 
+        setGoldChart(null); 
+        toast(err?.message || 'Không thể tải biểu đồ giá BTMH.', 'error'); 
+      })
       .finally(() => setChartLoading(false));
   }, [toast]);
 
@@ -50,7 +53,10 @@ const Gold: React.FC = () => {
     setLoading(true);
     Promise.all([
       api.getGold(),
-      api.getBtmhGoldRate().catch(() => null),
+      api.getBtmhGoldRate().catch((err) => {
+        toast(err?.message || 'Không thể lấy giá BTMH. Vui lòng thử lại.', 'error');
+        return null;
+      }),
     ])
       .then(([goldData, rateData]) => {
         setGold(goldData);

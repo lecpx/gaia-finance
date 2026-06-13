@@ -47,7 +47,10 @@ const Dashboard: React.FC = () => {
       api.getSummary(),
       api.getSavings(),
       api.getGold(),
-      api.getBtmhGoldRate().catch(() => null),
+      api.getBtmhGoldRate().catch((err) => {
+        toast(err?.message || 'Không thể lấy giá BTMH. Vui lòng thử lại.', 'error');
+        return null;
+      }),
       api.getGoalsWithProgress().catch(() => [] as any),
     ])
       .then(([summaryData, savingsData, goldData, rateData, goalsData]) => {

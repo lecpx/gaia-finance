@@ -160,36 +160,8 @@ export const db = {
 
 // ============================================================================
 // BTMH Gold Rate Functions
-// Since BTMH API blocks CORS from browser, we use fallback data only
+// If BTMH API fails, throw error instead of using fallback data
 // ============================================================================
-
-// Fallback gold rate data (KGB - Nhẫn Tròn ép vỉ 24K)
-// Giá vàng 24K hiện nay khoảng 144-147 triệu/chỉ
-const FALLBACK_GOLD_RATE: GoldRate = {
-  code: 'KGB',
-  name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)',
-  vendor_name: 'Kim Gia Bảo',
-  buy_price: 144000000, // 144 triệu/chỉ
-  sell_price: 147000000,
-  unit: 'chỉ',
-  weight: '1 chỉ',
-  trend: 'stable',
-  trend_value: '0',
-  last_updated: new Date().toISOString(),
-  tracked_code: 'KGB',
-  tracked_name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)',
-  fetched_at: new Date().toISOString(),
-  from_cache: false,
-};
-
-// Fallback chart data (empty - no historical data)
-const FALLBACK_CHART_DATA: GoldChartResponse = {
-  data_points: [],
-  product_options: [{ value: 'KGB', label: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)' }],
-  price_changes: [],
-  default_product: 'KGB',
-  from_cache: false,
-};
 
 // Cache keys for gold rate
 export async function fetchBtmhGoldRate(): Promise<GoldRate> {
@@ -201,15 +173,8 @@ export async function fetchBtmhGoldRate(): Promise<GoldRate> {
     return { ...cachedRate, from_cache: true };
   }
 
-  // BTMH API blocks CORS from browser, so we cannot fetch directly
-  // All proxies are also blocked, so we use fallback data
-  console.warn('BTMH API blocked by CORS, using fallback gold rate data');
-  
-  // Save fallback to cache so subsequent calls use it
-  setCache(KEYS.goldRateCache, FALLBACK_GOLD_RATE);
-  setCache(KEYS.goldRateCacheTime, Date.now());
-  
-  return { ...FALLBACK_GOLD_RATE, from_cache: false };
+  // BTMH API blocks CORS from browser, cannot fetch directly
+  throw new Error('Không thể lấy giá BTMH: API bị chặn bởi CORS');
 }
 
 // Cache keys for chart
@@ -228,11 +193,5 @@ export async function fetchBtmhGoldChart(
   }
 
   // BTMH chart API also blocked by CORS
-  console.warn('BTMH chart API blocked by CORS, using fallback chart data');
-  
-  // Save fallback to cache
-  setCache('gaia_gold_chart_cache', FALLBACK_CHART_DATA);
-  setCache('gaia_gold_chart_cache_time', Date.now());
-  
-  return { ...FALLBACK_CHART_DATA, from_cache: false };
+  throw new Error('Không thể lấy biểu đồ giá BTMH: API bị chặn bởi CORS');
 }

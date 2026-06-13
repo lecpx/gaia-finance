@@ -40,7 +40,15 @@ const Goals: React.FC = () => {
 
   const fetchAll = useCallback(() => {
     setLoading(true);
-    Promise.all([api.getGoalsWithProgress(), api.getSavings(), api.getGold(), api.getBtmhGoldRate().catch(() => null)])
+    Promise.all([
+      api.getGoalsWithProgress(), 
+      api.getSavings(), 
+      api.getGold(), 
+      api.getBtmhGoldRate().catch((err) => {
+        toast(err?.message || 'Không thể lấy giá BTMH. Vui lòng thử lại.', 'error');
+        return null;
+      })
+    ])
       .then(([g, s, d, r]) => { setGoals(g); setSavings(s); setGold(d); setGoldRate(r); })
       .catch(() => toast('Không thể tải dữ liệu.', 'error'))
       .finally(() => setLoading(false));
