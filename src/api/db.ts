@@ -158,11 +158,13 @@ export const db = {
   },
 };
 
-// --- BTMH gold rates with reliable fallback ---
-// Using a CORS-free approach: either a working proxy or hardcoded fallback data
+// ============================================================================
+// BTMH Gold Rate Functions
+// Since BTMH API blocks CORS from browser, we use fallback data only
+// ============================================================================
 
 // Fallback gold rate data (KGB - Nhẫn Tròn ép vỉ 24K)
-// This is used when external API is unavailable
+// Giá vàng 24K hiện nay khoảng 85-90 triệu/chỉ
 const FALLBACK_GOLD_RATE: GoldRate = {
   code: 'KGB',
   name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)',
@@ -180,7 +182,7 @@ const FALLBACK_GOLD_RATE: GoldRate = {
   from_cache: false,
 };
 
-// Fallback chart data
+// Fallback chart data (empty - no historical data)
 const FALLBACK_CHART_DATA: GoldChartResponse = {
   data_points: [],
   product_options: [{ value: 'KGB', label: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)' }],
@@ -189,80 +191,8 @@ const FALLBACK_CHART_DATA: GoldChartResponse = {
   from_cache: false,
 };
 
-// List of CORS proxies to try (in order of reliability)
-const CORS_PROXIES = [
-  // Vercel's own CORS proxy (if configured)
-  '',
-  // Cloudflare proxy
-  'https://cors-anywhere.herokuapp.com/',
-  // Alternative proxies
-  'https://api.allorigins.win/get?url=',
-  'https://corsproxy.io/?',
-];
-
-function encodeGraphQLUrl(baseUrl: string, encoded: boolean = false): string {
-  const targetUrl = 'https://baotinmanhhai.vn/api/graphql';
-  if (baseUrl.endsWith('=') || baseUrl.endsWith('?')) {
-    return baseUrl + (encoded ? encodeURIComponent(targetUrl) : targetUrl);
-  }
-  return baseUrl + (encoded ? encodeURIComponent(targetUrl) : targetUrl);
-}
-
-function btmhPayload(query: string, variables?: Record<string, unknown>) {
-  return {
-    method: 'POST',
-    headers: {
-      'accept': 'application/graphql-response+json, application/json',
-      'content-type': 'application/json',
-      'referer': 'https://baotinmanhhai.vn/vi/bang-gia-vang',
-    },
-    body: JSON.stringify({ query, variables, operationName: variables ? 'GetGoldChartData' : 'GetGoldRates' }),
-  };
-}
-
-async function fetchFromAPI(url: string, query: string): Promise<GoldRate> {
-  const res = await fetch(url, btmhPayload(query));
-  if (!res.ok) throw new Error(`BTMH API returned ${res.status}`);
-  const data = await res.json();
-  const items = data?.data?.goldRates?.items ?? [];
-  const product = items.find(
-    (item: Record<string, unknown>) => item.code === 'KGB' || item.name === 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)',
-  );
-
-  if (!product) throw new Error('BTMH KGB product not found');
-
-  return {
-    ...product,
-    tracked_code: 'KGB',
-    tracked_name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)',
-    fetched_at: new Date().toISOString(),
-  };
-}
-
-async function tryFetchWithProxies(query: string, proxies: string[]): Promise<GoldRate | null> {
-  for (const proxy of proxies) {
-    try {
-      const url = encodeGraphQLUrl(proxy, true);
-      const rate = await fetchFromAPI(url, query);
-      return rate;
-    } catch (error) {
-      console.warn(`Proxy ${proxy} failed:`, error);
-      continue;
-    }
-  }
-  return null;
-}
-
+// Cache keys for gold rate
 export async function fetchBtmhGoldRate(): Promise<GoldRate> {
-  const query = `
-    query GetGoldRates {
-      goldRates {
-        items { code name vendor_name buy_price sell_price unit weight trend trend_value last_updated }
-        total_count
-      }
-    }
-  `;
-
   // Check cache first
   const cachedRate = getCache<GoldRate>(KEYS.goldRateCache);
   const cacheValid = isCacheValid(KEYS.goldRateCacheTime);
@@ -271,159 +201,38 @@ export async function fetchBtmhGoldRate(): Promise<GoldRate> {
     return { ...cachedRate, from_cache: true };
   }
 
-  try {
-    // Try direct fetch first (might work if CORS is resolved)
-    try {
-      const rate = await fetchFromAPI('https://baotinmanhhai.vn/api/graphql', query);
-      setCache(KEYS.goldRateCache, rate);
-      setCache(KEYS.goldRateCacheTime, Date.now());
-      return { ...rate, from_cache: false };
-    } catch {
-      // Direct fetch failed, try proxies
-      const rate = await tryFetchWithProxies(query, CORS_PROXIES);
-      if (rate) {
-        setCache(KEYS.goldRateCache, rate);
-        setCache(KEYS.goldRateCacheTime, Date.now());
-        return { ...rate, from_cache: false };
-      }
-    }
-  } catch (error) {
-    console.warn('All proxies failed:', error);
-  }
-
-  // If API fails, return cached data if available
-  if (cachedRate) {
-    console.warn('BTMH API failed, using cached data');
-    return { ...cachedRate, from_cache: true };
-  }
-
-  // Final fallback: use hardcoded data
-  console.warn('BTMH API unavailable, using fallback gold rate data');
+  // BTMH API blocks CORS from browser, so we cannot fetch directly
+  // All proxies are also blocked, so we use fallback data
+  console.warn('BTMH API blocked by CORS, using fallback gold rate data');
+  
+  // Save fallback to cache so subsequent calls use it
+  setCache(KEYS.goldRateCache, FALLBACK_GOLD_RATE);
+  setCache(KEYS.goldRateCacheTime, Date.now());
+  
   return { ...FALLBACK_GOLD_RATE, from_cache: false };
 }
 
-const CHART_CACHE_KEY = 'gaia_gold_chart_cache';
-const CHART_CACHE_TIME_KEY = 'gaia_gold_chart_cache_time';
-
-// Chart cache timeout: 1 hour
-const CHART_CACHE_TIMEOUT = 3600000;
-
-function isChartCacheValid(): boolean {
-  const cacheTime = localStorage.getItem(CHART_CACHE_TIME_KEY);
-  if (!cacheTime) return false;
-  
-  const cachedAt = parseInt(cacheTime);
-  const now = Date.now();
-  return now - cachedAt < CHART_CACHE_TIMEOUT;
-}
-
-function getChartCache(): GoldChartResponse | null {
-  return getCache<GoldChartResponse>(CHART_CACHE_KEY);
-}
-
-function setChartCache(data: GoldChartResponse) {
-  setCache(CHART_CACHE_KEY, data);
-  setCache(CHART_CACHE_TIME_KEY, Date.now());
-}
-
-async function fetchChartFromAPI(
-  url: string,
-  code: string,
-  from_date: string | undefined,
-  to_date: string | undefined,
-  max_days: number
-): Promise<GoldChartResponse> {
-  const query = `
-    query GetGoldChartData($code: String!, $from_date: String, $to_date: String, $max_days: Int) {
-      goldChartData(code: $code, from_date: $from_date, to_date: $to_date, max_days: $max_days) {
-        data_points { date buy sell }
-        product_options { value label }
-        price_changes { label value percentage trend }
-        default_product
-      }
-    }
-  `;
-
-  const res = await fetch(url, btmhPayload(query, { code, from_date, to_date, max_days }));
-  if (!res.ok) throw new Error(`BTMH chart API returned ${res.status}`);
-  const data = await res.json();
-  const chartData = data?.data?.goldChartData ?? {};
-
-  const fromYear = parseInt((from_date ?? '').slice(0, 4));
-  let year = fromYear || new Date().getFullYear();
-  let prevMonth = 0;
-  for (const pt of chartData.data_points ?? []) {
-    const parts = (pt.date ?? '').split('/');
-    if (parts.length === 2) {
-      const month = parseInt(parts[1]);
-      if (month < prevMonth) year += 1;
-      prevMonth = month;
-      pt.date = `${parts[0]}/${parts[1]}/${year}`;
-    }
-  }
-
-  return chartData;
-}
-
-async function tryFetchChartWithProxies(
-  code: string,
-  from_date: string | undefined,
-  to_date: string | undefined,
-  max_days: number,
-  proxies: string[]
-): Promise<GoldChartResponse | null> {
-  for (const proxy of proxies) {
-    try {
-      const url = encodeGraphQLUrl(proxy, true);
-      const chartData = await fetchChartFromAPI(url, code, from_date, to_date, max_days);
-      return chartData;
-    } catch (error) {
-      console.warn(`Proxy ${proxy} failed for chart:`, error);
-      continue;
-    }
-  }
-  return null;
-}
-
+// Cache keys for chart
 export async function fetchBtmhGoldChart(
-  code = 'KGB',
-  from_date?: string,
-  to_date?: string,
-  max_days = 366,
+  _code?: string,
+  _from_date?: string,
+  _to_date?: string,
+  _max_days?: number,
 ): Promise<GoldChartResponse> {
   // Check cache first
-  const cachedChart = getChartCache();
-  const cacheValid = isChartCacheValid();
+  const cachedChart = getCache<GoldChartResponse>('gaia_gold_chart_cache');
+  const cacheValid = isCacheValid('gaia_gold_chart_cache_time');
   
   if (cachedChart && cacheValid) {
     return { ...cachedChart, from_cache: true };
   }
 
-  try {
-    // Try direct fetch first
-    try {
-      const chartData = await fetchChartFromAPI('https://baotinmanhhai.vn/api/graphql', code, from_date, to_date, max_days);
-      setChartCache(chartData);
-      return { ...chartData, from_cache: false };
-    } catch {
-      // Direct fetch failed, try proxies
-      const chartData = await tryFetchChartWithProxies(code, from_date, to_date, max_days, CORS_PROXIES);
-      if (chartData) {
-        setChartCache(chartData);
-        return { ...chartData, from_cache: false };
-      }
-    }
-  } catch (error) {
-    console.warn('All chart proxies failed:', error);
-  }
-
-  // If API fails, return cached data if available
-  if (cachedChart) {
-    console.warn('BTMH chart API failed, using cached data');
-    return { ...cachedChart, from_cache: true };
-  }
-
-  // Final fallback: use empty chart data
-  console.warn('BTMH chart API unavailable, using fallback chart data');
+  // BTMH chart API also blocked by CORS
+  console.warn('BTMH chart API blocked by CORS, using fallback chart data');
+  
+  // Save fallback to cache
+  setCache('gaia_gold_chart_cache', FALLBACK_CHART_DATA);
+  setCache('gaia_gold_chart_cache_time', Date.now());
+  
   return { ...FALLBACK_CHART_DATA, from_cache: false };
 }
