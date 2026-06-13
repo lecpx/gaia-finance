@@ -70,16 +70,12 @@ export const supabaseApi = {
   },
   getGoalsWithProgress: async (): Promise<GoalProgress[]> => {
     const [goals, savings, gold] = await Promise.all([supabaseApi.getGoals(), supabaseApi.getSavings(), supabaseApi.getGold()])
-    try {
-      const rate = await supabaseApi.getBtmhGoldRate()
-      const buyPrice = rate?.buy_price ?? 0
-      return goals.map(g => {
-        let current = 0
-        for (const idx of g.saving_indices) { if (idx >= 0 && idx < savings.length) current += savings[idx].amount }
-        for (const idx of g.gold_indices) { if (idx >= 0 && idx < gold.length) current += gold[idx].quantity * (buyPrice > 0 ? buyPrice : gold[idx].buy_price) }
-        const pct = g.target_amount > 0 ? Math.min((current / g.target_amount) * 100, 100) : 0
-        return { ...g, current_amount: Math.round(current), percentage: Math.round(pct * 10) / 10 }
-      }).sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name))
-    } catch { return goals.map(g => ({ ...g, current_amount: 0, percentage: 0 })) }
+    return goals.map(g => {
+      let current = 0
+      for (const idx of g.saving_indices) { if (idx >= 0 && idx < savings.length) current += savings[idx].amount }
+      for (const idx of g.gold_indices) { if (idx >= 0 && idx < gold.length) current += gold[idx].quantity * gold[idx].buy_price }
+      const pct = g.target_amount > 0 ? Math.min((current / g.target_amount) * 100, 100) : 0
+      return { ...g, current_amount: Math.round(current), percentage: Math.round(pct * 10) / 10 }
+    }).sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name))
   }
 }
