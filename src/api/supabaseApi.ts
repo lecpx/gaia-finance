@@ -5,8 +5,8 @@ const FALLBACK_GOLD_RATE: GoldRate = {
   code: 'KGB',
   name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K',
   vendor_name: 'Kim Gia Bảo',
-  buy_price: 85000000,
-  sell_price: 85500000,
+  buy_price: 90000000,
+  sell_price: 90500000,
   unit: 'chỉ',
   weight: '1 chỉ',
   trend: 'stable',
@@ -69,35 +69,21 @@ export const supabaseApi = {
     if (cached) return { ...cached, from_cache: true }
 
     try {
-      const proxies = [
-        'https://corsproxy.io/?',
-        'https://api.allorigins.win/get?url=',
-        'https://thingproxy.freeboard.io/fetch/'
-      ]
-
-      for (const proxy of proxies) {
-        try {
-          const response = await fetch(proxy + encodeURIComponent('https://baotinmanhhai.vn/api/graphql'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ query: `query { goldRates { items { code name vendor_name buy_price sell_price unit weight trend trend_value last_updated } } }` })
-          })
-          const data = await response.json()
-          const kgb = data?.data?.goldRates?.items?.find((i: any) => i.code === 'KGB')
-          if (kgb) {
-            localStorage.setItem(CACHE_KEY, JSON.stringify(kgb))
-            localStorage.setItem(CACHE_TIME_KEY, Date.now().toString())
-            return { 
-              ...kgb,
-              code: 'KGB',
-              tracked_code: 'KGB', 
-              tracked_name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo) 24K',
-              from_cache: false 
-            }
-          }
-        } catch { continue }
+      // Call Vercel Serverless Function to fetch BTMH gold rate
+      const response = await fetch('/api/btmh', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      })
+      const result = await response.json()
+      
+      if (result.success && result.goldRate) {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(result.goldRate))
+        localStorage.setItem(CACHE_TIME_KEY, Date.now().toString())
+        return { ...result.goldRate, from_cache: false }
       }
-    } catch {}
+    } catch (error) {
+      console.error('Failed to fetch from /api/btmh:', error)
+    }
 
     return FALLBACK_GOLD_RATE
   },
