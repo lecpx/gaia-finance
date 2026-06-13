@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '../api';
-import type { GoldRate, GoldRecord, SavingRecord, GoalProgress } from '../api/client';
+import type { GoldRecord, SavingRecord, GoalProgress } from '../api/client';
 import MetricCard from '../components/MetricCard';
 import { useToast } from '../components/Toast';
-import { Banknote, Building2, CircleDollarSign, Coins, Gem, Landmark, Percent, TrendingUp, ArrowUpDown } from 'lucide-react';
+import { Banknote, Building2, CircleDollarSign, Coins, Gem, Landmark, Percent } from 'lucide-react';
 import { formatPercent, formatVnd } from '../utils/format';
 
 interface Summary {
@@ -34,8 +34,6 @@ const Dashboard: React.FC = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [savings, setSavings] = useState<SavingRecord[]>([]);
   const [gold, setGold] = useState<GoldRecord[]>([]);
-  const [goldRate, setGoldRate] = useState<GoldRate | null>(null);
-  const [goldRateError, setGoldRateError] = useState(false);
   const [goals, setGoals] = useState<GoalProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState('');
@@ -47,18 +45,12 @@ const Dashboard: React.FC = () => {
       api.getSummary(),
       api.getSavings(),
       api.getGold(),
-      api.getBtmhGoldRate().catch((err) => {
-        toast(err?.message || 'Không thể lấy giá BTMH. Vui lòng thử lại.', 'error');
-        return null;
-      }),
       api.getGoalsWithProgress().catch(() => [] as any),
     ])
-      .then(([summaryData, savingsData, goldData, rateData, goalsData]) => {
+      .then(([summaryData, savingsData, goldData, goalsData]) => {
         setSummary(summaryData);
         setSavings(savingsData);
         setGold(goldData);
-        setGoldRate(rateData);
-        setGoldRateError(!rateData);
         setGoals(goalsData);
         setLastRefreshed(new Date().toLocaleTimeString('vi-VN'));
       })
@@ -77,16 +69,10 @@ const Dashboard: React.FC = () => {
   const termSavingInterest = useMemo(() => savings.reduce((sum, item) => sum + item.amount * item.interest_rate / 100 * item.term / 12, 0), [savings]);
   const totalGoldQuantity = useMemo(() => gold.reduce((sum, item) => sum + item.quantity, 0), [gold]);
   const goldCost = useMemo(() => gold.reduce((sum, item) => sum + item.quantity * item.buy_price, 0), [gold]);
-  const currentGoldBuyPrice = goldRate?.buy_price ?? 0;
-  const currentGoldSellPrice = goldRate?.sell_price ?? 0;
-  const spreadPerChi = useMemo(() => Math.max(currentGoldSellPrice - currentGoldBuyPrice, 0), [currentGoldSellPrice, currentGoldBuyPrice]);
-  const goldMarketValue = useMemo(() => currentGoldBuyPrice > 0 ? totalGoldQuantity * currentGoldBuyPrice : goldCost, [currentGoldBuyPrice, totalGoldQuantity, goldCost]);
-  const goldProfit = useMemo(() => goldMarketValue - goldCost, [goldMarketValue, goldCost]);
-  const goldProfitPct = useMemo(() => goldCost > 0 ? (goldProfit / goldCost) * 100 : 0, [goldProfit, goldCost]);
   const cashBalance = useMemo(() => summary?.cash_balance ?? 0, [summary]);
-  const marketTotalAssets = useMemo(() => totalSaving + goldMarketValue + cashBalance, [totalSaving, goldMarketValue, cashBalance]);
-  const marketGoldPct = useMemo(() => marketTotalAssets > 0 ? (goldMarketValue / marketTotalAssets) * 100 : 0, [marketTotalAssets, goldMarketValue]);
-  const marketSavingPct = useMemo(() => marketTotalAssets > 0 ? (totalSaving / marketTotalAssets) * 100 : 0, [marketTotalAssets, totalSaving]);
+  const totalAssets = useMemo(() => totalSaving + goldCost + cashBalance, [totalSaving, goldCost, cashBalance]);
+  const savingPct = useMemo(() => totalAssets > 0 ? (totalSaving / totalAssets) * 100 : 0, [totalAssets, totalSaving]);
+  const goldPct = useMemo(() => totalAssets > 0 ? (goldCost / totalAssets) * 100 : 0, [totalAssets, goldCost]);
   const avgGoldHoldingDays = useMemo(() => gold.length > 0
     ? gold.reduce((sum, item) => sum + Math.max(Math.ceil((Date.now() - (([d, m, y] = item.buy_date.split('/')) => new Date(+y, +m - 1, +d))().getTime()) / 86400000), 0), 0) / gold.length
     : 0, [gold]);
@@ -96,14 +82,13 @@ const Dashboard: React.FC = () => {
 
   const allocation = useMemo(() => [
     { name: 'Tiết kiệm', value: totalSaving, color: '#2563eb' },
-    { name: 'Vàng KGB', value: goldMarketValue, color: '#d97706' },
+    { name: 'Vàng (giá vốn)', value: goldCost, color: '#d97706' },
     { name: 'Tiền mặt', value: cashBalance, color: '#059669' },
-  ].filter(item => item.value > 0), [totalSaving, goldMarketValue, cashBalance]);
+  ].filter(item => item.value > 0), [totalSaving, goldCost, cashBalance]);
   const comparisonData = useMemo(() => [
     { name: 'Tiết kiệm', value: totalSaving, fill: '#2563eb' },
-    { name: 'Vàng - giá vốn', value: goldCost, fill: '#94a3b8' },
-    { name: 'Vàng - thị trường', value: goldMarketValue, fill: goldProfit >= 0 ? '#059669' : '#dc2626' },
-  ], [totalSaving, goldCost, goldMarketValue, goldProfit]);
+    { name: 'Vàng (giá vốn)', value: goldCost, fill: '#d97706' },
+  ], [totalSaving, goldCost]);
   const allocationLegend = useMemo(() => allocation.map(item => ({
     name: item.name,
     color: item.color,
@@ -135,56 +120,38 @@ const Dashboard: React.FC = () => {
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-950">Tổng quan danh mục</h2>
-          <p className="mt-1 text-sm font-medium text-slate-500">Chỉ giữ các chỉ số dùng để so sánh giữa tiết kiệm và vàng.</p>
+          <p className="mt-1 text-sm font-medium text-slate-500">Thống kê theo tiền riêng, vàng riêng (theo giá vốn).</p>
           {lastRefreshed && <p className="mt-0.5 text-xs font-medium text-slate-400">Cập nhật lúc {lastRefreshed}</p>}
-        </div>
-        <div className={`status-badge ${goldRateError ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
-          {goldRateError ? 'Chưa lấy được giá BTMH' : `BTMH KGB cập nhật ${goldRate?.last_updated ?? ''}`}
         </div>
       </div>
 
-      {goldRateError && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-800">
-          <strong>⚠ Giá BTMH chưa được cập nhật.</strong> các chỉ số liên quan đến vàng (tổng tài sản, tỷ trọng, lãi/lỗ) đang hiển thị không chính xác.
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <MetricCard
-          label="Tổng tài sản thị trường"
-          value={formatVnd(marketTotalAssets ?? summary?.total_assets)}
-          caption={`Tiết kiệm + vàng + tiền mặt ${formatVnd(cashBalance)}`}
+          label="Tổng tài sản"
+          value={formatVnd(totalAssets ?? summary?.total_assets)}
+          caption={`Tiết kiệm + vàng (giá vốn) + tiền mặt ${formatVnd(cashBalance)}`}
           icon={<CircleDollarSign size={20} />}
           tone="slate"
-          description="Tổng giá trị danh mục nếu quy đổi vàng theo giá mua vào hiện tại của BTMH."
-          formula="Tổng tiền gửi tiết kiệm + (Tổng chỉ vàng x giá BTMH mua vào/chỉ)"
+          description="Tổng giá trị danh mục theo giá vốn."
+          formula="Tổng tiền gửi tiết kiệm + Tổng giá vốn vàng + Tiền mặt"
         />
         <MetricCard
           label="Tỷ trọng tiết kiệm"
-          value={`${marketSavingPct.toFixed(1)}%`}
+          value={`${savingPct.toFixed(1)}%`}
           caption={formatVnd(totalSaving)}
           icon={<Landmark size={20} />}
           tone="blue"
-          description="Phần trăm tài sản đang nằm ở tiết kiệm trong tổng danh mục theo giá thị trường."
-          formula="Tổng tiền gửi / Tổng tài sản thị trường x 100"
+          description="Phần trăm tài sản đang nằm ở tiết kiệm."
+          formula="Tổng tiền gửi / Tổng tài sản x 100"
         />
         <MetricCard
           label="Tỷ trọng vàng"
-          value={`${marketGoldPct.toFixed(1)}%`}
-          caption={formatVnd(goldMarketValue)}
+          value={`${goldPct.toFixed(1)}%`}
+          caption={formatVnd(goldCost)}
           icon={<Coins size={20} />}
           tone="amber"
-          description="Phần trăm tài sản đang nằm ở vàng, quy đổi theo giá BTMH mua vào."
-          formula="Giá trị vàng hiện tại / Tổng tài sản thị trường x 100"
-        />
-        <MetricCard
-          label="Vàng so với giá vốn"
-          value={formatVnd(goldProfit)}
-          caption={formatPercent(goldProfitPct)}
-          icon={<TrendingUp size={20} />}
-          tone={goldProfit >= 0 ? 'emerald' : 'slate'}
-          description="Lãi hoặc lỗ tạm tính của danh mục vàng nếu bán theo giá mua vào hiện tại của BTMH."
-          formula="Giá trị vàng hiện tại - Tổng giá vốn vàng"
+          description="Phần trăm tài sản đang nằm ở vàng (theo giá vốn)."
+          formula="Tổng giá vốn vàng / Tổng tài sản x 100"
         />
       </div>
 
@@ -231,29 +198,11 @@ const Dashboard: React.FC = () => {
         <div className="panel-header">
           <div>
             <h3 className="text-base font-bold text-slate-950">Vàng</h3>
-            <p className="mt-1 text-sm text-slate-500">Phân tích giá vàng và danh mục vàng.</p>
+            <p className="mt-1 text-sm text-slate-500">Thống kê vàng theo giá vốn.</p>
           </div>
           <Gem size={20} className="text-amber-700" />
         </div>
-        <div className="grid grid-cols-1 gap-4 p-6 xl:grid-cols-4">
-          <MetricCard
-            label="Giá BTMH mua vào"
-            value={formatVnd(currentGoldBuyPrice)}
-            caption={goldRate?.name ? `KGB - ${goldRate.unit}` : 'Chưa có dữ liệu'}
-            icon={<Coins size={20} />}
-            tone="amber"
-            description="Giá Bảo Tín Mạnh Hải mua vào sản phẩm Kim Gia Bảo (nhẫn tròn ép vỉ 24K)."
-            formula="API gold-rates/btmh → buy_price"
-          />
-          <MetricCard
-            label="Giá BTMH bán ra"
-            value={formatVnd(currentGoldSellPrice)}
-            caption={spreadPerChi > 0 ? `Chênh lệch ${formatVnd(spreadPerChi)}/chỉ` : 'Chưa có dữ liệu'}
-            icon={<TrendingUp size={20} />}
-            tone="slate"
-            description="Giá Bảo Tín Mạnh Hải bán ra sản phẩm Kim Gia Bảo (nhẫn tròn ép vỉ 24K)."
-            formula="API gold-rates/btmh → sell_price"
-          />
+        <div className="grid grid-cols-1 gap-4 p-6 xl:grid-cols-3">
           <MetricCard
             label="Tổng khối lượng"
             value={`${totalGoldQuantity.toFixed(1)} chỉ`}
@@ -267,10 +216,19 @@ const Dashboard: React.FC = () => {
             label="Vốn đầu tư"
             value={formatVnd(goldCost)}
             caption={`${gold.length} giao dịch`}
-            icon={<TrendingUp size={20} />}
+            icon={<Banknote size={20} />}
             tone="slate"
             description="Tổng tiền đã bỏ ra để mua vàng theo các giao dịch đã nhập."
             formula="Tổng từng giao dịch: Số lượng chỉ x Giá mua/chỉ"
+          />
+          <MetricCard
+            label="Giá vốn trung bình"
+            value={formatVnd(totalGoldQuantity > 0 ? goldCost / totalGoldQuantity : 0)}
+            caption="Theo mỗi chỉ"
+            icon={<CircleDollarSign size={20} />}
+            tone="emerald"
+            description="Giá vốn bình quân của mỗi chỉ vàng trong danh mục."
+            formula="Tổng vốn đầu tư / Tổng số chỉ"
           />
         </div>
       </section>
@@ -280,7 +238,7 @@ const Dashboard: React.FC = () => {
           <div className="panel-header">
             <div>
               <h3 className="text-base font-bold text-slate-950">Phân bổ tài sản</h3>
-              <p className="mt-1 text-sm text-slate-500">So sánh tỷ trọng tiết kiệm và vàng theo giá thị trường.</p>
+              <p className="mt-1 text-sm text-slate-500">Phân bổ theo giá vốn: tiết kiệm, vàng, tiền mặt.</p>
             </div>
           </div>
           <div className="h-80 min-w-0 px-3 py-6">
@@ -304,7 +262,7 @@ const Dashboard: React.FC = () => {
           <div className="panel-header">
             <div>
               <h3 className="text-base font-bold text-slate-950">So sánh giá trị</h3>
-              <p className="mt-1 text-sm text-slate-500">Tiết kiệm, vốn vàng và giá trị vàng hiện tại.</p>
+              <p className="mt-1 text-sm text-slate-500">Tiết kiệm và vàng theo giá vốn.</p>
             </div>
           </div>
           <div className="h-80 min-w-0 px-4 py-6">
@@ -328,20 +286,19 @@ const Dashboard: React.FC = () => {
         <section className="panel">
           <div className="panel-header">
             <div>
-              <h3 className="text-base font-bold text-slate-950">Hiệu quả đầu tư</h3>
-              <p className="mt-1 text-sm text-slate-500">Vàng thực tế so với giả định gửi tiết kiệm.</p>
+              <h3 className="text-base font-bold text-slate-950">Thời gian nắm giữ vàng</h3>
+              <p className="mt-1 text-sm text-slate-500">Thống kê thời gian nắm giữ trung bình.</p>
             </div>
-            <ArrowUpDown size={20} className="text-slate-700" />
           </div>
-          <div className="grid grid-cols-1 gap-4 p-6 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 p-6 xl:grid-cols-2">
             <MetricCard
-              label="Vàng — lợi nhuận thực tế"
-              value={formatVnd(goldProfit)}
-              caption={formatPercent(goldProfitPct)}
-              icon={<Coins size={20} />}
-              tone={goldProfit >= 0 ? 'emerald' : 'slate'}
-              description="Lãi/lỗ tạm tính của danh mục vàng theo giá BTMH mua vào."
-              formula="Giá trị thị trường - Tổng giá vốn"
+              label="Thời gian nắm giữ vàng"
+              value={`${avgGoldHoldingDays.toFixed(0)} ngày`}
+              caption={`${(avgGoldHoldingDays / 365).toFixed(1)} năm`}
+              icon={<TrendingUp size={20} />}
+              tone="slate"
+              description="Thời gian nắm giữ vàng trung bình của toàn bộ giao dịch."
+              formula="Trung bình số ngày từ ngày mua đến hiện tại"
             />
             <MetricCard
               label="Tiết kiệm — giả định"
@@ -351,24 +308,6 @@ const Dashboard: React.FC = () => {
               tone="blue"
               description="Số lãi ước tính nếu số tiền mua vàng được gửi tiết kiệm với lãi suất bình quân trong cùng khoảng thời gian."
               formula="Tổng vốn vàng x LS bình quân x Số ngày bình quân / 365"
-            />
-            <MetricCard
-              label="Chênh lệch"
-              value={goldProfit - hypotheticalSavingReturn >= 0 ? formatVnd(Math.round(goldProfit - hypotheticalSavingReturn)) : formatVnd(Math.round(hypotheticalSavingReturn - goldProfit))}
-              caption={goldProfit - hypotheticalSavingReturn >= 0 ? 'Vàng đang hiệu quả hơn' : 'Tiết kiệm đang hiệu quả hơn'}
-              icon={<ArrowUpDown size={20} />}
-              tone={goldProfit - hypotheticalSavingReturn >= 0 ? 'emerald' : 'blue'}
-              description="Chênh lệch giữa lợi nhuận vàng thực tế và lãi giả định từ tiết kiệm."
-              formula="Lợi nhuận vàng - Lãi giả định tiết kiệm"
-            />
-            <MetricCard
-              label="Thời gian nắm giữ vàng"
-              value={`${avgGoldHoldingDays.toFixed(0)} ngày`}
-              caption={`${(avgGoldHoldingDays / 365).toFixed(1)} năm`}
-              icon={<TrendingUp size={20} />}
-              tone="slate"
-              description="Thời gian nắm giữ vàng trung bình của toàn bộ giao dịch."
-              formula="Trung bình số ngày từ ngày mua đến hiện tại"
             />
           </div>
         </section>

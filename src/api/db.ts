@@ -1,4 +1,4 @@
-import type { GoldChartResponse, GoldRate, GoalRecord, SavingRecord, GoldRecord, TransactionRecord, MonthlyReport } from './client';
+import type { GoalRecord, SavingRecord, GoldRecord, TransactionRecord, MonthlyReport } from './client';
 
 const KEYS = {
   savings: 'gaia_savings',
@@ -104,7 +104,7 @@ export const db = {
     };
   },
 
-  getGoalProgress: (currentBuyPrice = 0) => {
+  getGoalProgress: () => {
     const goals = load<GoalRecord>(KEYS.goals);
     const savings = load<SavingRecord>(KEYS.savings);
     const gold = load<GoldRecord>(KEYS.gold);
@@ -116,7 +116,7 @@ export const db = {
       }
       for (const idx of g.gold_indices) {
         if (idx >= 0 && idx < gold.length) {
-          current += gold[idx].quantity * (currentBuyPrice > 0 ? currentBuyPrice : gold[idx].buy_price);
+          current += gold[idx].quantity * gold[idx].buy_price;
         }
       }
       const target = g.target_amount;
@@ -129,22 +129,3 @@ export const db = {
     }).sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name));
   },
 };
-
-// ============================================================================
-// BTMH Gold Rate Functions
-// BTMH API blocks CORS from browser, cannot fetch directly
-// Throw error instead of using fallback data
-// ============================================================================
-
-export async function fetchBtmhGoldRate(): Promise<GoldRate> {
-  throw new Error('Không thể lấy giá BTMH: API bị chặn bởi CORS');
-}
-
-export async function fetchBtmhGoldChart(
-  _code?: string,
-  _from_date?: string,
-  _to_date?: string,
-  _max_days?: number,
-): Promise<GoldChartResponse> {
-  throw new Error('Không thể lấy biểu đồ giá BTMH: API bị chặn bởi CORS');
-}

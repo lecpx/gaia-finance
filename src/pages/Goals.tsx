@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
-import type { GoalProgress, GoalRecord, SavingRecord, GoldRecord, GoldRate } from '../api/client';
+import type { GoalProgress, GoalRecord, SavingRecord, GoldRecord } from '../api/client';
 import { useToast } from '../components/Toast';
 import Confirm from '../components/Confirm';
 import { ArrowDown, ArrowUp, Plus, Target, Trash2 } from 'lucide-react';
@@ -19,7 +19,6 @@ const Goals: React.FC = () => {
   const [goals, setGoals] = useState<GoalProgress[]>([]);
   const [savings, setSavings] = useState<SavingRecord[]>([]);
   const [gold, setGold] = useState<GoldRecord[]>([]);
-  const [goldRate, setGoldRate] = useState<GoldRate | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<GoalRecord | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -43,13 +42,9 @@ const Goals: React.FC = () => {
     Promise.all([
       api.getGoalsWithProgress(), 
       api.getSavings(), 
-      api.getGold(), 
-      api.getBtmhGoldRate().catch((err) => {
-        toast(err?.message || 'Không thể lấy giá BTMH. Vui lòng thử lại.', 'error');
-        return null;
-      })
+      api.getGold(),
     ])
-      .then(([g, s, d, r]) => { setGoals(g); setSavings(s); setGold(d); setGoldRate(r); })
+      .then(([g, s, d]) => { setGoals(g); setSavings(s); setGold(d); })
       .catch(() => toast('Không thể tải dữ liệu.', 'error'))
       .finally(() => setLoading(false));
   }, [toast]);
@@ -216,7 +211,7 @@ const Goals: React.FC = () => {
                       <input type="checkbox" checked={editing.gold_indices.includes(i)} disabled={taken} onChange={() => setEditing({ ...editing, gold_indices: toggleIndex(editing.gold_indices, i) })} className="h-4 w-4 rounded border-slate-300 text-amber-600 disabled:opacity-40" />
                       <span className="font-medium">{g.gold_type}</span>
                       <span className="text-xs text-slate-500">{g.quantity} chỉ</span>
-                      <span className="ml-auto text-xs font-semibold text-slate-500">{formatVnd(g.quantity * (goldRate ? (goldRate.buy_price / 10) : g.buy_price))}</span>
+                      <span className="ml-auto text-xs font-semibold text-slate-500">{formatVnd(g.quantity * g.buy_price)}</span>
                       {taken && <span className="text-[10px] text-slate-400">(đã dùng)</span>}
                     </label>
                     );

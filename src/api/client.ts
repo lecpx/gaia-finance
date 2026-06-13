@@ -19,37 +19,6 @@ export interface GoldRecord {
   note?: string;
 }
 
-export interface GoldRate {
-  code: string;
-  name: string;
-  vendor_name: string;
-  buy_price: number;
-  sell_price: number;
-  unit: string;
-  weight: string | null;
-  trend: string;
-  trend_value: string;
-  last_updated: string;
-  tracked_code: string;
-  tracked_name: string;
-  fetched_at: string;
-  from_cache?: boolean;
-}
-
-export interface GoldRatePoint {
-  date: string;
-  buy: number;
-  sell: number;
-}
-
-export interface GoldChartResponse {
-  data_points: GoldRatePoint[];
-  product_options: Array<{ value: string; label: string }>;
-  price_changes: Array<{ label: string; value: number; percentage: number; trend: string }>;
-  default_product: string;
-  from_cache?: boolean;
-}
-
 export interface GoalRecord {
   id: string;
   name: string;
@@ -82,7 +51,3 @@ export interface MonthlyReport {
   net: number;
   categories: Array<{ category: string; type: string; amount: number; count: number }>;
 }
-
-// Legacy exports for backwards compatibility
-// Note: For Supabase, use supabaseApi from supabaseApi.ts instead
-export { fetchBtmhGoldRate, fetchBtmhGoldChart } from './db';

@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import type { SavingRecord, GoldRecord, GoalRecord, GoalProgress, TransactionRecord, MonthlyReport, GoldRate, GoldChartResponse } from './client'
+import type { SavingRecord, GoldRecord, GoalRecord, GoalProgress, TransactionRecord, MonthlyReport } from './client'
 
 export const supabaseApi = {
   getSavings: async (): Promise<SavingRecord[]> => {
@@ -24,25 +24,6 @@ export const supabaseApi = {
   addTransaction: async (record: TransactionRecord) => { const { error } = await supabase.from('cashflow').insert([record]); if (error) throw error; return { status: 'success' } },
   updateTransactions: async (data: TransactionRecord[]) => { await supabase.from('cashflow').delete().neq('id', ''); await supabase.from('cashflow').insert(data); return { status: 'success' } },
   deleteTransaction: async (id: string) => { const { error } = await supabase.from('cashflow').delete().eq('id', id); if (error) throw error; return { status: 'success' } },
-
-  getBtmhGoldRate: async (): Promise<GoldRate> => {
-    const cacheBuster = Date.now()
-    const response = await fetch(`/api/btmh?_=${cacheBuster}`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    })
-    const result = await response.json()
-    
-    if (result.success && result.goldRate) {
-      return { ...result.goldRate, from_cache: false }
-    }
-    
-    throw new Error(result.error || 'Không thể lấy giá BTMH: API trả về lỗi');
-  },
-
-  getBtmhGoldChart: async (): Promise<GoldChartResponse> => {
-    throw new Error('Không thể lấy biểu đồ giá BTMH: Chưa triển khai');
-  },
 
   getSummary: async () => {
     const [savings, gold, transactions] = await Promise.all([supabaseApi.getSavings(), supabaseApi.getGold(), supabaseApi.getTransactions()])
@@ -70,12 +51,10 @@ export const supabaseApi = {
   },
   getGoalsWithProgress: async (): Promise<GoalProgress[]> => {
     const [goals, savings, gold] = await Promise.all([supabaseApi.getGoals(), supabaseApi.getSavings(), supabaseApi.getGold()])
-    const rate = await supabaseApi.getBtmhGoldRate()
-    const buyPrice = rate?.buy_price ?? 0
     return goals.map(g => {
       let current = 0
       for (const idx of g.saving_indices) { if (idx >= 0 && idx < savings.length) current += savings[idx].amount }
-      for (const idx of g.gold_indices) { if (idx >= 0 && idx < gold.length) current += gold[idx].quantity * (buyPrice > 0 ? buyPrice : gold[idx].buy_price) }
+      for (const idx of g.gold_indices) { if (idx >= 0 && idx < gold.length) current += gold[idx].quantity * gold[idx].buy_price }
       const pct = g.target_amount > 0 ? Math.min((current / g.target_amount) * 100, 100) : 0
       return { ...g, current_amount: Math.round(current), percentage: Math.round(pct * 10) / 10 }
     }).sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name))
