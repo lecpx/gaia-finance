@@ -1,15 +1,11 @@
-import { supabase } from '../../api/supabaseClient'
-import type { NextApiRequest, NextApiResponse } from 'next'
+import { supabase } from '../../../api/supabaseClient'
+import { NextResponse } from 'next/server'
 
-// Bypass SSL certificate validation for BTMH
+// Bypass SSL certificate
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
-export default async function handler(
-  _req: NextApiRequest,
-  res: NextApiResponse
-) {
+export async function GET() {
   try {
-    // Fetch from BTMH API (bypasses SSL in Node.js)
     const btmhResponse = await fetch('https://baotinmanhhai.vn/api/graphql', {
       method: 'POST',
       headers: {
@@ -37,17 +33,13 @@ export default async function handler(
       })
     })
 
-    if (!btmhResponse.ok) {
-      throw new Error(`BTMH API failed: ${btmhResponse.status}`)
-    }
+    if (!btmhResponse.ok) throw new Error(`BTMH API failed: ${btmhResponse.status}`)
 
     const data = await btmhResponse.json()
     const items = data?.data?.goldRates?.items || []
     const kgb = items.find((i: any) => i.code === 'KGB')
 
-    if (!kgb) {
-      throw new Error('KGB product not found')
-    }
+    if (!kgb) throw new Error('KGB not found')
 
     // Save to Supabase
     const { error } = await supabase
@@ -68,11 +60,9 @@ export default async function handler(
         fetched_at: new Date().toISOString()
       }, { onConflict: 'code' })
 
-    if (error) {
-      throw new Error(error.message)
-    }
+    if (error) throw new Error(error.message)
 
-    res.status(200).json({
+    return NextResponse.json({
       success: true,
       goldRate: {
         ...kgb,
@@ -83,10 +73,10 @@ export default async function handler(
     })
 
   } catch (error) {
-    console.error('BTMH fetch error:', error)
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
+    console.error('BTMH error:', error)
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
   }
 }
