@@ -164,13 +164,13 @@ export const db = {
 // ============================================================================
 
 // Fallback gold rate data (KGB - Nhẫn Tròn ép vỉ 24K)
-// Giá vàng 24K hiện nay khoảng 85-90 triệu/chỉ
+// Giá vàng 24K hiện nay khoảng 144-147 triệu/chỉ
 const FALLBACK_GOLD_RATE: GoldRate = {
   code: 'KGB',
   name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)',
   vendor_name: 'Kim Gia Bảo',
-  buy_price: 85000000, // 85 triệu/chỉ - giá fallback an toàn
-  sell_price: 85500000,
+  buy_price: 144000000, // 144 triệu/chỉ
+  sell_price: 147000000,
   unit: 'chỉ',
   weight: '1 chỉ',
   trend: 'stable',
