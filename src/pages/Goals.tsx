@@ -216,7 +216,7 @@ const Goals: React.FC = () => {
                       <input type="checkbox" checked={editing.gold_indices.includes(i)} disabled={taken} onChange={() => setEditing({ ...editing, gold_indices: toggleIndex(editing.gold_indices, i) })} className="h-4 w-4 rounded border-slate-300 text-amber-600 disabled:opacity-40" />
                       <span className="font-medium">{g.gold_type}</span>
                       <span className="text-xs text-slate-500">{g.quantity} chỉ</span>
-                      <span className="ml-auto text-xs font-semibold text-slate-500">{formatVnd(g.quantity * (goldRate?.buy_price ?? g.buy_price))}</span>
+                      <span className="ml-auto text-xs font-semibold text-slate-500">{formatVnd(g.quantity * (goldRate ? (goldRate.buy_price / 10) : g.buy_price))}</span>
                       {taken && <span className="text-[10px] text-slate-400">(đã dùng)</span>}
                     </label>
                     );
