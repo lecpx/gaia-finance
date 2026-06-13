@@ -135,20 +135,14 @@ const Dashboard: React.FC = () => {
           <p className="mt-1 text-sm font-medium text-slate-500">Chỉ giữ các chỉ số dùng để so sánh giữa tiết kiệm và vàng.</p>
           {lastRefreshed && <p className="mt-0.5 text-xs font-medium text-slate-400">Cập nhật lúc {lastRefreshed}</p>}
         </div>
-        <div className={`status-badge ${goldRateError ? 'border-amber-200 bg-amber-50 text-amber-700' : goldRate?.from_cache ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
-          {goldRateError ? 'Chưa lấy được giá BTMH' : goldRate?.from_cache ? `BTMH KGB (cache) ${goldRate?.last_updated ?? ''}` : `BTMH KGB cập nhật ${goldRate?.last_updated ?? ''}`}
+        <div className={`status-badge ${goldRateError ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+          {goldRateError ? 'Chưa lấy được giá BTMH' : `BTMH KGB cập nhật ${goldRate?.last_updated ?? ''}`}
         </div>
       </div>
 
       {goldRateError && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-800">
           <strong>⚠ Giá BTMH chưa được cập nhật.</strong> các chỉ số liên quan đến vàng (tổng tài sản, tỷ trọng, lãi/lỗ) đang hiển thị không chính xác.
-        </div>
-      )}
-      
-      {goldRate?.from_cache && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-5 py-4 text-sm font-medium text-blue-800">
-          <strong>ℹ Đang sử dụng giá vàng cache.</strong> Dữ liệu có thể cũ (cập nhật sau 1 giờ). Các chỉ số vàng vẫn chính xác nhưng có thể chưa phản ánh giá thị trường mới nhất.
         </div>
       )}
 
