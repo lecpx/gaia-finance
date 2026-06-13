@@ -162,7 +162,8 @@ export const db = {
 const BTMH_URL = '/btmh/api/graphql';
 
 // Fallback URL for production (CORS proxy)
-const FALLBACK_BTMH_URL = 'https://corsproxy.io/?' + encodeURIComponent('https://baotinmanhhai.vn/api/graphql');
+// Sử dụng allorigins.win (hoạt động tốt hơn corsproxy.io)
+const FALLBACK_BTMH_URL = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://baotinmanhhai.vn/api/graphql');
 
 function btmhPayload(query: string, variables?: Record<string, unknown>) {
   return {
