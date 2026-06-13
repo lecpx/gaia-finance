@@ -158,12 +158,12 @@ export const db = {
   },
 };
 
-// --- BTMH gold rates (proxied via Vite in dev, direct URL as fallback) ---
-const BTMH_URL = '/btmh/api/graphql';
+// --- BTMH gold rates (CORS proxy for production) ---
+// Sử dụng direct CORS proxy (proxy chỉ hoạt động trong dev)
+const BTMH_URL = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://baotinmanhhai.vn/api/graphql');
 
-// Fallback URL for production (CORS proxy)
-// Sử dụng allorigins.win (hoạt động tốt hơn corsproxy.io)
-const FALLBACK_BTMH_URL = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://baotinmanhhai.vn/api/graphql');
+// Fallback URL (dùng chung cho dev và production)
+const FALLBACK_BTMH_URL = 'https://thingproxy.freeboard.io/fetch/' + encodeURIComponent('https://baotinmanhhai.vn/api/graphql');
 
 function btmhPayload(query: string, variables?: Record<string, unknown>) {
   return {
