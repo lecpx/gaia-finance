@@ -38,9 +38,9 @@ const Gold: React.FC = () => {
   const [lastRefreshed, setLastRefreshed] = useState('');
   const { toast } = useToast();
 
-  const fetchChart = useCallback((from: string, to: string) => {
+  const fetchChart = useCallback(() => {
     setChartLoading(true);
-    api.getBtmhGoldChart('KGB', from, to)
+    api.getBtmhGoldChart()
       .then(setGoldChart)
       .catch(() => { setGoldChart(null); toast('Không thể tải biểu đồ giá.', 'error'); })
       .finally(() => setChartLoading(false));
@@ -67,7 +67,7 @@ const Gold: React.FC = () => {
   }, [fetchData]);
 
   useEffect(() => {
-    fetchChart(chartFromDate, chartToDate);
+    fetchChart();
   }, [fetchChart, chartFromDate, chartToDate]);
 
   const handleAdd = useCallback((e: React.FormEvent) => {

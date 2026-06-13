@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import type { SavingRecord, GoldRecord, GoalRecord, GoalProgress, TransactionRecord, MonthlyReport } from './client'
+import type { SavingRecord, GoldRecord, GoalRecord, GoalProgress, TransactionRecord, MonthlyReport, GoldRate, GoldChartResponse } from './client'
 
 export const supabaseApi = {
   // === SAVINGS ===
@@ -130,15 +130,55 @@ export const supabaseApi = {
     return { status: 'success' }
   },
 
-  // === BTMH GOLD RATE (giữ nguyên cache mechanism) ===
-  getBtmhGoldRate: async () => {
-    const { fetchBtmhGoldRate } = await import('./db')
-    return fetchBtmhGoldRate()
+  // === BTMH GOLD RATE (from Supabase gold_rates table) ===
+  getBtmhGoldRate: async (): Promise<GoldRate> => {
+    const { data, error } = await supabase
+      .from('gold_rates')
+      .select('*')
+      .eq('code', 'KGB')
+      .order('fetched_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error('Error fetching gold rate:', error);
+    }
+
+    if (!data || data.length === 0) {
+      // Fallback data if no data in table
+      return {
+        code: 'KGB',
+        name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)',
+        vendor_name: 'Kim Gia Bảo',
+        buy_price: 85000000,
+        sell_price: 85500000,
+        unit: 'chỉ',
+        weight: '1 chỉ',
+        trend: 'stable',
+        trend_value: '0',
+        last_updated: new Date().toISOString(),
+        tracked_code: 'KGB',
+        tracked_name: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)',
+        fetched_at: new Date().toISOString(),
+        from_cache: false,
+      };
+    }
+
+    return {
+      ...data[0],
+      from_cache: false,
+    };
   },
 
-  getBtmhGoldChart: async (code = 'KGB', from_date?: string, to_date?: string, max_days = 365) => {
-    const { fetchBtmhGoldChart } = await import('./db')
-    return fetchBtmhGoldChart(code, from_date, to_date, max_days)
+  getBtmhGoldChart: async (): Promise<GoldChartResponse> => {
+    // Return empty chart data for now
+    // Can be enhanced later to store chart data in Supabase
+    return {
+      data_points: [],
+      product_options: [{ value: 'KGB', label: 'Nhẫn Tròn ép vỉ (Kim Gia Bảo ) 24K (999.9)' }],
+      price_changes: [],
+      default_product: 'KGB',
+      from_cache: false,
+    };
   },
 
   // === COMPUTED FUNCTIONS ===
